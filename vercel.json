@@ -4,5 +4,13 @@
       "path": "/api/cron/sync-form-submissions",
       "schedule": "0 20 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 60
+    },
+    "api/cron/sync-form-submissions.js": {
+      "maxDuration": 60
+    }
+  }
 }
