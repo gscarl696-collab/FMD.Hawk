@@ -38,8 +38,10 @@ import { uploadImage, uploadDocument, getImageDataUri } from '../lib/images.js';
 
 /** Routes an action name + params/payload to the matching backend
  *  function — same "action router" shape the frontend's apiGet/apiPost
- *  already speak, so switching over is just a base-URL change. */
-async function handleApiRequest(action, p) {
+ *  already speak, so switching over is just a base-URL change. `ip` is
+ *  the caller's address, used only for login rate-limiting — never
+ *  stored or passed anywhere else. */
+async function handleApiRequest(action, p, ip) {
   p = p || {};
   await checkRateLimit(p.token);
 
@@ -65,8 +67,8 @@ async function handleApiRequest(action, p) {
     case 'getAllTeam': return getAllTeam();
 
     // ---- admin auth ----
-    case 'adminLogin': return adminLogin(p.adminId, p.password);
-    case 'login': return login(p.loginId, p.password);
+    case 'adminLogin': return adminLogin(p.adminId, p.password, ip);
+    case 'login': return login(p.loginId, p.password, ip);
     case 'recordDashboardLogout': return recordDashboardLogout(p.token);
     case 'recordAttendance': return recordAttendance(p.token, p.date, p.playerId);
     case 'getAttendanceForDate': return getAttendanceForDate(p.token, p.date);
@@ -76,7 +78,7 @@ async function handleApiRequest(action, p) {
     case 'saveEvaluation': return saveEvaluation(p.token, p.evaluationId, p.formData);
     case 'getPlayerPerformanceForDate': return getPlayerPerformanceForDate(p.token, p.date);
     case 'getPublicPlayerPerformance': return getPublicPlayerPerformance(p.date, p.myKid);
-    case 'coachLogin': return coachLogin(p.coachId, p.password);
+    case 'coachLogin': return coachLogin(p.coachId, p.password, ip);
     case 'updateMyCoachAccount': return updateMyCoachAccount(p.token, p.updates);
     case 'createCoachAccount': return createCoachAccount(p.token, p.name, p.email);
     case 'updateCoachAccountByRow': return updateCoachAccountByRow(p.token, p.coachId, p.updates);
@@ -139,16 +141,49 @@ async function handleApiRequest(action, p) {
   }
 }
 
+/** Origins allowed to call this API directly from a browser. Add a new
+ *  entry here if the site ever moves to another domain or subdomain —
+ *  anything not on this list gets no CORS header at all, so a browser
+ *  will block the response (server-to-server calls, e.g. from Postman or
+ *  another backend, aren't affected by CORS at all — this only stops
+ *  *other websites* from making authenticated requests using a visitor's
+ *  browser session). */
+const ALLOWED_ORIGINS = [
+  'https://thehawkpenang.com',
+  'https://www.thehawkpenang.com',
+  'https://fmd-hawk.vercel.app'
+];
+// Vercel preview deployments get their own random subdomain per branch/PR
+// (e.g. fmd-hawk-git-somebranch-yourteam.vercel.app) — this pattern covers
+// those too, so testing a preview deploy doesn't require updating this list.
+const PREVIEW_ORIGIN_RE = /^https:\/\/fmd-hawk-[a-z0-9-]+\.vercel\.app$/;
+
+function isAllowedOrigin(origin) {
+  if (!origin) return false;
+  return ALLOWED_ORIGINS.includes(origin) || PREVIEW_ORIGIN_RE.test(origin);
+}
+
+function getClientIp(req) {
+  // Vercel sets x-forwarded-for; it can contain a comma-separated chain
+  // if the request passed through multiple proxies — the first entry is
+  // the original client.
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) return String(forwarded).split(',')[0].trim();
+  return req.socket?.remoteAddress || '';
+}
+
 /** Vercel serverless function entry point. Accepts both GET (public
  *  reads, action + params in the query string) and POST (writes, action +
  *  payload in a JSON body) — matching the old doGet/doPost split exactly,
  *  so the frontend's existing apiGet/apiPost helpers work unchanged
  *  beyond pointing at this URL instead of the Apps Script one. */
 export default async function handler(req, res) {
-  // Same-origin in production (frontend and API both live on your Vercel
-  // domain), but CORS is harmless to allow broadly here in case of local
-  // dev against a deployed API, or a future subdomain split.
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  if (isAllowedOrigin(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  // No else branch — an unrecognized origin just gets no CORS header at
+  // all, which is what makes a browser block the response client-side.
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
@@ -181,7 +216,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const data = await handleApiRequest(action, params);
+    const data = await handleApiRequest(action, params, getClientIp(req));
     res.status(200).json({ data });
   } catch (err) {
     res.status(200).json({ error: err.message || String(err) }); // 200 on purpose — matches the old backend's shape, error is in the JSON body, not the HTTP status
