@@ -23,8 +23,8 @@ import {
 import { getClubRegistrationInfo, updateClubRegistrationInfo } from '../lib/club-registration.js';
 import {
   login, adminLogin, coachLogin, recordDashboardLogout,
-  createAdmin, updateAdminByRow, updateMyAccount, getAdmins,
-  createCoachAccount, updateCoachAccountByRow, getCoachAccountsList, updateMyCoachAccount
+  createAdmin, updateAdminByRow, updateMyAccount, getAdmins, deleteAdmin,
+  createCoachAccount, updateCoachAccountByRow, getCoachAccountsList, updateMyCoachAccount, deleteCoachAccount
 } from '../lib/admin-accounts.js';
 import {
   recordAttendance, getAttendanceForDate, getAttendanceSessionDates,
@@ -84,10 +84,12 @@ async function handleApiRequest(action, p, ip) {
     case 'createCoachAccount': return createCoachAccount(p.token, p.name, p.email);
     case 'updateCoachAccountByRow': return updateCoachAccountByRow(p.token, p.coachId, p.updates);
     case 'getCoachAccountsList': return getCoachAccountsList(p.token);
+    case 'deleteCoachAccount': return deleteCoachAccount(p.token, p.coachId);
     case 'createAdmin': return createAdmin(p.token, p.name, p.email);
     case 'updateAdminByRow': return updateAdminByRow(p.token, p.adminId, p.updates);
     case 'updateMyAccount': return updateMyAccount(p.token, p.updates);
     case 'getAdmins': return getAdmins(p.token);
+    case 'deleteAdmin': return deleteAdmin(p.token, p.adminId);
     case 'getNotifications': return getNotifications(p.token);
     case 'markNotificationRead': return markNotificationRead(p.token, p.notificationId);
     case 'markAllNotificationsRead': return markAllNotificationsRead(p.token);
