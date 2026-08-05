@@ -35,6 +35,7 @@ import {
   getNotifications, markNotificationRead, markAllNotificationsRead, deleteNotification
 } from '../lib/notifications.js';
 import { uploadImage, uploadDocument, getImageDataUri } from '../lib/images.js';
+import { syncFormSubmissionsNow } from '../lib/sync.js';
 
 /** Routes an action name + params/payload to the matching backend
  *  function — same "action router" shape the frontend's apiGet/apiPost
@@ -130,6 +131,7 @@ async function handleApiRequest(action, p, ip) {
     case 'reorderManagement': return reorderManagement(p.token, p.orderedIds);
     case 'uploadImage': return uploadImage(p.token, p.base64Data, p.mimeType, p.filename, p.square);
     case 'uploadDocument': return uploadDocument(p.token, p.base64Data, p.mimeType, p.filename);
+    case 'syncFormSubmissionsNow': return syncFormSubmissionsNow(p.token);
     case 'getImageDataUri': return getImageDataUri(p.url);
 
     // ---- Club Registration (was: SSM) ----
