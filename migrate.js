@@ -55,6 +55,11 @@ async function migratePlayers(sheets, drive) {
     const imageUrl = await copyDriveFileToBlob(drive, imageUrlSheet || imageRaw, 'images');
     const birthCertUrl = driveViewLink(val(row, map, 'Salinan Surat Beranak'));
     const mykidCopyUrl = driveViewLink(val(row, map, 'Salinan MyKid Depan/Belakang'));
+    // Prefer the Apps Script trigger's cleaned-up phone column (fixes
+    // dashes/leading zeros Sheets tends to mangle); fall back to the raw
+    // form answer if that one's ever blank.
+    const guardianPhone = val(row, map, 'No. Telefon Penjaga (Ibu/Bapa/Penjaga)') ||
+                           val(row, map, 'No. Telefon Penjaga (Ibu/Bapa/Penjaga) (Tanpa "-")');
 
     await run(
       `INSERT INTO players (
@@ -63,9 +68,9 @@ async function migratePlayers(sheets, drive) {
          image_url, player_number, position, active_since, qr_code_url
        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        playerId, val(row, map, 'Timestamp'), val(row, map, 'Nama (HURUF BESAR)'), val(row, map, 'No. Mykid'),
+        playerId, val(row, map, 'Timestamp'), val(row, map, 'Nama (HURUF BESAR)'), val(row, map, 'No. MyKid (Tanpa "-")'),
         val(row, map, 'Umur') || null, val(row, map, 'Nama Sekolah (HURUF BESAR)'),
-        val(row, map, 'Nama Penjaga (Ibu/Bapa/Penjaga) (HURUF BESAR)'), val(row, map, 'No. Telefon Penjaga (Ibu/Bapa/Penjaga)'),
+        val(row, map, 'Nama Penjaga (Ibu/Bapa/Penjaga) (HURUF BESAR)'), guardianPhone,
         val(row, map, 'Alamat Tetap'), imageRaw, birthCertUrl, mykidCopyUrl,
         val(row, map, 'Category') || 'Unassigned', val(row, map, 'Status') || 'Pending', val(row, map, 'Notes'),
         imageUrl || imageUrlSheet, val(row, map, 'Player Number') || null, val(row, map, 'Position'),
