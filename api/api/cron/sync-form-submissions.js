@@ -46,15 +46,23 @@ const PLAYERS_SHEET_NAME = 'Form Responses 1';
 /** Same header-name -> internal-field-name mapping as GS.txt's
  *  PLAYER_FIELD_HEADERS/PLAYER_MANAGED_HEADERS, kept in sync manually —
  *  if a question on the Form is ever reworded, update this the same way
- *  you'd have updated that constant. */
+ *  you'd have updated that constant.
+ *
+ *  guardianPhone deliberately maps from TWO different headers: the raw
+ *  form answer, and a second "managed" column the Apps Script trigger
+ *  writes a cleaned-up version into (fixing dashes/leading zeros Sheets
+ *  tends to mangle). Both map to the same internal field name on purpose
+ *  — see GUARDIAN_PHONE_PRIORITY below for how the correct one gets
+ *  picked when both exist. */
 const FIELD_HEADERS = {
   'Timestamp': 'timestamp',
   'Nama (HURUF BESAR)': 'name',
-  'No. Mykid': 'myKid',
+  'No. MyKid (Tanpa "-")': 'myKid',
   'Umur': 'age',
   'Nama Sekolah (HURUF BESAR)': 'school',
   'Nama Penjaga (Ibu/Bapa/Penjaga) (HURUF BESAR)': 'guardianName',
-  'No. Telefon Penjaga (Ibu/Bapa/Penjaga)': 'guardianPhone',
+  'No. Telefon Penjaga (Ibu/Bapa/Penjaga) (Tanpa "-")': 'guardianPhoneRaw',
+  'No. Telefon Penjaga (Ibu/Bapa/Penjaga)': 'guardianPhoneManaged',
   'Alamat Tetap': 'address',
   'Gambar Pemain': 'imageRaw',
   'Salinan Surat Beranak': 'birthCertRaw',
@@ -95,6 +103,10 @@ export default async function handler(req, res) {
     headerRow.forEach((h, i) => { const field = FIELD_HEADERS[h.trim()]; if (field) colIndex[field] = i; });
 
     function val(row, field) { return colIndex[field] !== undefined ? (row[colIndex[field]] || '') : ''; }
+    // Prefer the Apps Script trigger's cleaned-up phone column; fall back
+    // to the raw form answer if that one's ever blank (e.g. an older row
+    // from before the managed column existed).
+    function guardianPhone(row) { return val(row, 'guardianPhoneManaged') || val(row, 'guardianPhoneRaw'); }
 
     // Already-synced player IDs, to skip on every run.
     const syncedRows = await query('SELECT player_id FROM synced_form_rows');
@@ -133,7 +145,7 @@ export default async function handler(req, res) {
          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           playerId, val(row, 'timestamp') || new Date().toISOString(), val(row, 'name'), val(row, 'myKid'),
-          age || null, val(row, 'school'), val(row, 'guardianName'), val(row, 'guardianPhone'), val(row, 'address'),
+          age || null, val(row, 'school'), val(row, 'guardianName'), guardianPhone(row), val(row, 'address'),
           val(row, 'imageRaw'), birthCertUrl, mykidCopyUrl, category, val(row, 'status') || 'Pending',
           val(row, 'notes'), imageUrl || val(row, 'imageUrl'), val(row, 'playerNumber') || null,
           val(row, 'position'), val(row, 'activeSince') || null, val(row, 'qrCodeUrl') || playerQrCodeUrl(playerId)
