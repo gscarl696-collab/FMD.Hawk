@@ -26,6 +26,7 @@
  * from them. Your original data stays exactly as it is, as your rollback
  * safety net.
  */
+import 'dotenv/config';
 import { google } from 'googleapis';
 import { run, query, queryOne } from './lib/db.js';
 import { getGoogleAuth, copyDriveFileToBlob, driveViewLink, readSheet, columnIndexMap } from './lib/drive.js';
