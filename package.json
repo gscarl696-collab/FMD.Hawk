@@ -1,12 +1,13 @@
 {
   "name": "thehawk-backend",
   "version": "1.0.0",
-  "description": "THE HAWK Elite Football Club \u2014 API backend (Vercel + Turso + Vercel Blob), replacing the Google Apps Script backend.",
+  "description": "THE HAWK Elite Football Club — API backend (Vercel + Turso + Vercel Blob), replacing the Google Apps Script backend.",
   "type": "module",
   "dependencies": {
     "@libsql/client": "^0.14.0",
     "@vercel/blob": "^0.27.0",
-    "googleapis": "^144.0.0",
-    "dotenv": "^16.4.5"
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "googleapis": "^144.0.0"
   }
 }
